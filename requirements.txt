@@ -3,3 +3,5 @@ requests
 python-docx
 selenium
 PyMuPDF
+pytesseract
+pillow
