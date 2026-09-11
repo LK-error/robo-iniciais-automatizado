@@ -102,46 +102,32 @@ def minerar_dados_confissao(texto_bruto):
     {texto_bruto}
     """
     
-    # Fila de prioridade com os nomes atualizados dos modelos ativos
-    # Fila de prioridade corrigida para as versões 1.5
-    modelos_fallback = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
+    # Configura a chave nova (AQ.) diretamente no motor oficial da API
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     
-    chave_nuvem = st.secrets["GEMINI_API_KEY"]
+    # Fila de prioridade com os modelos mais rápidos e inteligentes
+    modelos_fallback = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
     
-    # --- RAIO-X PARA DESCOBRIR SE A NUVEM ESTÁ LENDO A CHAVE ---
-    st.info(f"🔍 DEBUG NUVEM: A chave carregada começa com '{chave_nuvem[:4]}' e tem {len(chave_nuvem)} caracteres.")
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": chave_nuvem
-    }
-    
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    
-    for modelo in modelos_fallback:
-        # URL limpa, sem o parâmetro da chave
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-        
+    for modelo_nome in modelos_fallback:
         try:
-            resposta = requests.post(url, headers=headers, json=payload)
-            dados = resposta.json()
+            model = genai.GenerativeModel(modelo_nome)
             
-            if "error" in dados:
-                mensagem_erro = dados['error'].get('message', '').lower()
-                if "high demand" in mensagem_erro or "not found" in mensagem_erro:
-                    continue 
-                else:
-                    st.error(f"⚠️ Erro fatal no Google: {dados['error'].get('message')}")
-                    return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
+            # Força o retorno em JSON para evitar textos aleatórios
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(
+                    response_mime_type="application/json"
+                )
+            )
             
-            texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
-            texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
+            texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
             return json.loads(texto_json)
             
         except Exception as e:
+            # Se um modelo falhar (limite de uso), pula para o próximo da fila
             continue
             
-    st.error("⚠️ Todos os servidores do Google estão superlotados neste exato momento. Aguarde 1 minuto e tente novamente.")
+    st.error("⚠️ Todos os servidores do Google falharam ou estão superlotados neste momento. Tente novamente em 1 minuto.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
 def buscar_endereco_cobrare(pesquisa_devedor):
