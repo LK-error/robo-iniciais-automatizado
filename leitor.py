@@ -1,4 +1,5 @@
 import streamlit as st
+import google.generativeai as genai
 import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
