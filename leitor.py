@@ -44,8 +44,8 @@ ESTADOS_BR = {
 st.set_page_config(page_title="Gerador de Iniciais", layout="wide")
 st.sidebar.title("🔐 Configurações")
 
-# 1. Chave API embutida e totalmente invisível na interface
-api_key_gemini = "AQ.Ab8RN6KEBhtONf32G73Ml3Zf9AnK6W4AVKxIZezJiULDaMJRJQ"
+# Puxa a chave de forma segura direto do painel do Streamlit Cloud
+api_key_gemini = st.secrets["GEMINI_API_KEY"]
 
 # 2. Credenciais do COBRARE salvas por padrão
 usuario_cobrare = st.sidebar.text_input("Usuário do COBRARE", value="AUGUSTO BRINK")
@@ -80,10 +80,6 @@ def extrair_texto_hibrido(arquivo_bytes):
     return texto_completo
 
 def minerar_dados_confissao(texto_bruto):
-    if not api_key_gemini:
-        st.warning("⚠️ Insira a Chave API do Gemini na barra lateral para usar a extração inteligente.")
-        return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
-
     prompt = f"""
     Você é um assistente jurídico experiente. Leia o contrato abaixo e extraia os dados em um formato JSON estrito.
     Sua tarefa é TRANSCREVER as qualificações mantendo EXATAMENTE as mesmas palavras, frases e jargões originais, corrigindo APENAS os erros de OCR.
@@ -105,44 +101,45 @@ def minerar_dados_confissao(texto_bruto):
     {texto_bruto}
     """
     
-    # Fila de prioridade: do mais rápido para o mais potente
-    modelos_fallback = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.5-pro"]
+    # Fila de prioridade com os nomes atualizados dos modelos ativos
+    # Fila de prioridade corrigida para as versões 1.5
+    modelos_fallback = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
     
-    headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+    chave_nuvem = st.secrets["GEMINI_API_KEY"]
+    
+    # --- RAIO-X PARA DESCOBRIR SE A NUVEM ESTÁ LENDO A CHAVE ---
+    st.info(f"🔍 DEBUG NUVEM: A chave carregada começa com '{chave_nuvem[:4]}' e tem {len(chave_nuvem)} caracteres.")
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": chave_nuvem
     }
     
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    
     for modelo in modelos_fallback:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key_gemini}"
+        # URL limpa, sem o parâmetro da chave
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
         
         try:
             resposta = requests.post(url, headers=headers, json=payload)
             dados = resposta.json()
             
-            # Verifica se o Google retornou um erro
             if "error" in dados:
                 mensagem_erro = dados['error'].get('message', '').lower()
-                
-                # Se o erro for de congestionamento (high demand) ou modelo indisponível, tenta o próximo
                 if "high demand" in mensagem_erro or "not found" in mensagem_erro:
                     continue 
                 else:
-                    # Se for erro grave (ex: chave vencida), trava o sistema e avisa
                     st.error(f"⚠️ Erro fatal no Google: {dados['error'].get('message')}")
                     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
             
-            # Se passou pelos erros, captura o texto e sai do loop na hora!
             texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
             texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
-            
             return json.loads(texto_json)
             
         except Exception as e:
-            # Se cair a internet no meio da requisição, tenta o próximo da fila
             continue
             
-    # Se testar os 3 modelos e os 3 estiverem congestionados ao mesmo tempo (raríssimo)
     st.error("⚠️ Todos os servidores do Google estão superlotados neste exato momento. Aguarde 1 minuto e tente novamente.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
