@@ -102,13 +102,13 @@ def minerar_dados_confissao(texto_bruto):
     st.info(f"🔍 DEBUG NUVEM: Conexão direta ativada. Chave: {chave_nuvem[:4]}...{chave_nuvem[-4:]}")
     
     # O PULO DO GATO: Chave injetada diretamente no link (parâmetro ?key=)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={chave_nuvem}"
+    # Fila de nomes que o Google aceita na API pública
+    modelos_para_testar = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.0-pro-latest"]
     
     headers = {
         "Content-Type": "application/json"
     }
     
-    # Estrutura nativa de payload da API
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -116,24 +116,28 @@ def minerar_dados_confissao(texto_bruto):
         }
     }
     
-    try:
-        # Enviamos a requisição "nua e crua" sem passar por bibliotecas bugadas
-        resposta = requests.post(url, headers=headers, json=payload)
-        dados = resposta.json()
+    for modelo in modelos_para_testar:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={chave_nuvem}"
         
-        # Se o Google responder com sucesso (Status 200)
-        if resposta.status_code == 200:
-            texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
-            texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
-            return json.loads(texto_json)
-        else:
-            # Mostra na tela o exato erro caso o Google ainda reclame
-            st.warning(f"⚠️ Erro do Google: {dados}")
+        try:
+            resposta = requests.post(url, headers=headers, json=payload)
+            dados = resposta.json()
             
-    except Exception as e:
-        st.warning(f"⚠️ Falha de comunicação: {e}")
+            if resposta.status_code == 200:
+                texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
+                texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
+                return json.loads(texto_json)
+            else:
+                # Se não for erro 404 de modelo não encontrado, mostra o erro real
+                if dados.get("error", {}).get("code") != 404:
+                    st.warning(f"⚠️ Erro no modelo {modelo}: {dados}")
+                continue # Tenta o próximo modelo da fila
+                
+        except Exception as e:
+            st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
+            continue
             
-    st.error("⚠️ Não foi possível extrair os dados. Veja os alertas amarelos acima.")
+    st.error("⚠️ Nenhum modelo da lista foi aceito pela sua chave. Veja os alertas amarelos.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
 def buscar_endereco_cobrare(pesquisa_devedor):
