@@ -115,7 +115,7 @@ def minerar_dados_confissao(texto_bruto):
         pass
         
     # 2. Fila de tentativas com os modelos REAIS da sua chave
-    modelos_para_testar = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-pro"]
+    modelos_para_testar = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"]
     
     headers = {
         "Content-Type": "application/json"
