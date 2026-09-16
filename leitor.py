@@ -101,9 +101,21 @@ def minerar_dados_confissao(texto_bruto):
     
     st.info(f"🔍 DEBUG NUVEM: Conexão direta ativada. Chave: {chave_nuvem[:4]}...{chave_nuvem[-4:]}")
     
-    # O PULO DO GATO: Chave injetada diretamente no link (parâmetro ?key=)
-    # Fila de nomes que o Google aceita na API pública
-    modelos_para_testar = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.0-pro-latest"]
+    # 1. PULO DO GATO SUPREMO: Pergunta ao Google QUAIS modelos ele aceita nessa chave
+    try:
+        url_lista = f"https://generativelanguage.googleapis.com/v1beta/models?key={chave_nuvem}"
+        resposta_lista = requests.get(url_lista)
+        if resposta_lista.status_code == 200:
+            modelos = resposta_lista.json().get("models", [])
+            nomes = [m["name"].replace("models/", "") for m in modelos if "generateContent" in m.get("supportedGenerationMethods", [])]
+            st.success(f"🤖 Modelos liberados na sua chave: {nomes}")
+        else:
+            st.warning(f"⚠️ Não consegui ler a lista de modelos: {resposta_lista.text}")
+    except Exception as e:
+        pass
+        
+    # 2. Fila de tentativas clássicas e modernas
+    modelos_para_testar = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro", "gemini-1.5-flash-latest"]
     
     headers = {
         "Content-Type": "application/json"
@@ -124,20 +136,18 @@ def minerar_dados_confissao(texto_bruto):
             dados = resposta.json()
             
             if resposta.status_code == 200:
+                st.success(f"✅ Sucesso com o modelo: {modelo}")
                 texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
                 texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
                 return json.loads(texto_json)
             else:
-                # Se não for erro 404 de modelo não encontrado, mostra o erro real
-                if dados.get("error", {}).get("code") != 404:
-                    st.warning(f"⚠️ Erro no modelo {modelo}: {dados}")
-                continue # Tenta o próximo modelo da fila
+                # Agora ele VAI mostrar todos os erros na tela sem esconder nada
+                st.warning(f"⚠️ Erro ao tentar {modelo}: {dados}")
                 
         except Exception as e:
             st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
-            continue
             
-    st.error("⚠️ Nenhum modelo da lista foi aceito pela sua chave. Veja os alertas amarelos.")
+    st.error("⚠️ Nenhum modelo funcionou. Veja os erros acima.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
 def buscar_endereco_cobrare(pesquisa_devedor):
