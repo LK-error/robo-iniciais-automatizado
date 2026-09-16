@@ -19,6 +19,8 @@ import datetime
 from docx import Document
 from docx.shared import Pt
 from google.oauth2 import service_account
+import vertexai
+from vertexai.generative_models import GenerativeModel, GenerationConfig
 import google.generativeai as genai
 
 # Configuração Inteligente do Tesseract (Funciona Local e Nuvem)
@@ -99,41 +101,34 @@ def minerar_dados_confissao(texto_bruto):
     """
     
     try:
-        # Puxa o JSON inteiro do Streamlit Secrets
+        # Puxa o JSON do Streamlit Secrets
         info_json = json.loads(st.secrets["GOOGLE_JSON"])
-        
-        # Cria a credencial corporativa
         credenciais = service_account.Credentials.from_service_account_info(info_json)
         
-        # Autentica o SDK
-        genai.configure(credentials=credenciais)
+        # Conecta no servidor corporativo do Google (Vertex AI)
+        vertexai.init(
+            project=info_json["project_id"],
+            location="us-central1", 
+            credentials=credenciais
+        )
         
-        st.info("🔍 DEBUG NUVEM: Autenticação via JSON (Service Account) ativada com sucesso!")
+        st.info("🔍 DEBUG NUVEM: Conectado ao servidor empresarial Vertex AI!")
         
-        # Fila de prioridade com os nomes que o Google Cloud aceita nativamente
-        modelos_fallback = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-pro"]
+        # O modelo exato da versão empresarial
+        model = GenerativeModel("gemini-1.5-flash-002")
         
-        for modelo_nome in modelos_fallback:
-            try:
-                model = genai.GenerativeModel(modelo_nome)
-                
-                response = model.generate_content(
-                    prompt,
-                    generation_config=genai.GenerationConfig(
-                        response_mime_type="application/json"
-                    )
-                )
-                
-                texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
-                return json.loads(texto_json)
-                
-            except Exception as erro_modelo:
-                # Se o nome não existir no servidor, avisa e tenta o próximo da fila
-                st.warning(f"⚠️ Modelo {modelo_nome} indisponível: {erro_modelo}")
-                continue
-                
+        response = model.generate_content(
+            prompt,
+            generation_config=GenerationConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
+        return json.loads(texto_json)
+        
     except Exception as e:
-        st.warning(f"Falha na API do Google (JSON Auth): {e}")
+        st.warning(f"Falha na API do Google (Vertex AI): {e}")
         
     st.error("⚠️ Não foi possível extrair os dados. Veja os alertas amarelos acima.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
