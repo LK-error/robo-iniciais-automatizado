@@ -1,12 +1,9 @@
 import streamlit as st
-import google.generativeai as genai
 import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
 import re
 import platform
-import requests
-import json
 import json
 import base64
 from selenium import webdriver
@@ -21,6 +18,8 @@ import io
 import datetime
 from docx import Document
 from docx.shared import Pt
+from google.oauth2 import service_account
+import google.generativeai as genai
 
 # Configuração Inteligente do Tesseract (Funciona Local e Nuvem)
 if platform.system() == "Windows":
@@ -102,32 +101,34 @@ def minerar_dados_confissao(texto_bruto):
     {texto_bruto}
     """
     
-    # Configura a chave nova (AQ.) diretamente no motor oficial da API
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    
-    # Fila de prioridade com os modelos mais rápidos e inteligentes
-    modelos_fallback = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
-    
-    for modelo_nome in modelos_fallback:
-        try:
-            model = genai.GenerativeModel(modelo_nome)
-            
-            # Força o retorno em JSON para evitar textos aleatórios
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json"
-                )
+    try:
+        # Puxa o JSON inteiro do Streamlit Secrets
+        info_json = json.loads(st.secrets["GOOGLE_JSON"])
+        
+        # Cria a credencial corporativa
+        credenciais = service_account.Credentials.from_service_account_info(info_json)
+        
+        # Autentica o SDK
+        genai.configure(credentials=credenciais)
+        
+        st.info("🔍 DEBUG NUVEM: Autenticação via JSON (Service Account) ativada com sucesso!")
+        
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
             )
-            
-            texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
-            return json.loads(texto_json)
-            
-        except Exception as e:
-            # Se um modelo falhar (limite de uso), pula para o próximo da fila
-            continue
-            
-    st.error("⚠️ Todos os servidores do Google falharam ou estão superlotados neste momento. Tente novamente em 1 minuto.")
+        )
+        
+        texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
+        return json.loads(texto_json)
+        
+    except Exception as e:
+        st.warning(f"Falha na API do Google (JSON Auth): {e}")
+        
+    st.error("⚠️ Não foi possível extrair os dados. Veja os alertas amarelos acima.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
 def buscar_endereco_cobrare(pesquisa_devedor):
@@ -516,8 +517,8 @@ if st.button("Processar e Gerar Inicial"):
     else:
         st.error("⚠️ O arquivo da Confissão de Dívida é obrigatório.")
 
-    def exibir_preview_pdf(arquivo_bytes):
+def exibir_preview_pdf(arquivo_bytes):
     # Converte o PDF para texto base64 e injeta em um visualizador HTML
-        base64_pdf = base64.b64encode(arquivo_bytes).decode('utf-8')
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
+    base64_pdf = base64.b64encode(arquivo_bytes).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+    st.markdown(pdf_display, unsafe_allow_html=True)

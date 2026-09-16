@@ -6,3 +6,4 @@ PyMuPDF
 pytesseract
 pillow
 google-generativeai
+google-auth
