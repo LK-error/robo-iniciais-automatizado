@@ -99,7 +99,7 @@ def minerar_dados_confissao(texto_bruto):
     
     chave_nuvem = st.secrets["GEMINI_API_KEY"]
     
-    st.info(f"🔍 DEBUG NUVEM: Conexão direta ativada. Chave: {chave_nuvem[:4]}...{chave_nuvem[-4:]}")
+    #st.info(f"🔍 DEBUG NUVEM: Conexão direta ativada. Chave: {chave_nuvem[:4]}...{chave_nuvem[-4:]}")
     
     # 1. PULO DO GATO SUPREMO: Pergunta ao Google QUAIS modelos ele aceita nessa chave
     try:
@@ -108,9 +108,9 @@ def minerar_dados_confissao(texto_bruto):
         if resposta_lista.status_code == 200:
             modelos = resposta_lista.json().get("models", [])
             nomes = [m["name"].replace("models/", "") for m in modelos if "generateContent" in m.get("supportedGenerationMethods", [])]
-            st.success(f"🤖 Modelos liberados na sua chave: {nomes}")
-        else:
-            st.warning(f"⚠️ Não consegui ler a lista de modelos: {resposta_lista.text}")
+            #st.success(f"🤖 Modelos liberados na sua chave: {nomes}")
+        #else:
+            #st.warning(f"⚠️ Não consegui ler a lista de modelos: {resposta_lista.text}")
     except Exception as e:
         pass
         
@@ -136,7 +136,7 @@ def minerar_dados_confissao(texto_bruto):
             dados = resposta.json()
             
             if resposta.status_code == 200:
-                st.success(f"✅ Sucesso com o modelo: {modelo}")
+                #st.success(f"✅ Sucesso com o modelo: {modelo}")
                 texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
                 texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
                 return json.loads(texto_json)
@@ -476,14 +476,14 @@ if st.button("Processar e Gerar Inicial"):
             texto_confissao = extrair_texto_hibrido(confissao_file.getvalue())
             
             # --- NOVO RAIO-X: O QUE O ROBÔ LEU ---
-            st.warning("⚠️ DEBUG: Texto Bruto Extraído (Visão do Robô):")
-            st.text(texto_confissao[:1500])
+            #st.warning("⚠️ DEBUG: Texto Bruto Extraído (Visão do Robô):")
+            #st.text(texto_confissao[:1500])
             # -------------------------------------
             
             dados_minerados = minerar_dados_confissao(texto_confissao)
             
             # --- RAIO-X DO POLO PASSIVO ---
-            st.info(f"🔍 DEBUG: Polo Passivo encontrado -> {dados_minerados['polo_passivo']}")
+            #st.info(f"🔍 DEBUG: Polo Passivo encontrado -> {dados_minerados['polo_passivo']}")
             # ------------------------------
             
         # Percorre todos os encontrados (Devedores e Avalistas)
