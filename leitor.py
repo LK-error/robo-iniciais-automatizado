@@ -44,9 +44,6 @@ ESTADOS_BR = {
 st.set_page_config(page_title="Gerador de Iniciais", layout="wide")
 st.sidebar.title("🔐 Configurações")
 
-# Puxa a chave de forma segura direto do painel do Streamlit Cloud
-api_key_gemini = st.secrets["GEMINI_API_KEY"]
-
 # 2. Credenciais do COBRARE salvas por padrão
 usuario_cobrare = st.sidebar.text_input("Usuário do COBRARE", value="AUGUSTO BRINK")
 senha_cobrare = st.sidebar.text_input("Senha do COBRARE", type="password", value="FL2024")
