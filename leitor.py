@@ -110,18 +110,28 @@ def minerar_dados_confissao(texto_bruto):
         
         st.info("🔍 DEBUG NUVEM: Autenticação via JSON (Service Account) ativada com sucesso!")
         
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        # Fila de prioridade com os nomes que o Google Cloud aceita nativamente
+        modelos_fallback = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-pro"]
         
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json"
-            )
-        )
-        
-        texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
-        return json.loads(texto_json)
-        
+        for modelo_nome in modelos_fallback:
+            try:
+                model = genai.GenerativeModel(modelo_nome)
+                
+                response = model.generate_content(
+                    prompt,
+                    generation_config=genai.GenerationConfig(
+                        response_mime_type="application/json"
+                    )
+                )
+                
+                texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
+                return json.loads(texto_json)
+                
+            except Exception as erro_modelo:
+                # Se o nome não existir no servidor, avisa e tenta o próximo da fila
+                st.warning(f"⚠️ Modelo {modelo_nome} indisponível: {erro_modelo}")
+                continue
+                
     except Exception as e:
         st.warning(f"Falha na API do Google (JSON Auth): {e}")
         
