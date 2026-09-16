@@ -114,8 +114,8 @@ def minerar_dados_confissao(texto_bruto):
     except Exception as e:
         pass
         
-    # 2. Fila de tentativas clássicas e modernas
-    modelos_para_testar = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro", "gemini-1.5-flash-latest"]
+    # 2. Fila de tentativas com os modelos REAIS da sua chave
+    modelos_para_testar = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-pro"]
     
     headers = {
         "Content-Type": "application/json"
