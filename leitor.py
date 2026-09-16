@@ -21,7 +21,7 @@ from docx.shared import Pt
 from google.oauth2 import service_account
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig
-import google.generativeai as genai
+
 
 # Configuração Inteligente do Tesseract (Funciona Local e Nuvem)
 if platform.system() == "Windows":
