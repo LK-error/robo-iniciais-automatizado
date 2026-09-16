@@ -4,6 +4,7 @@ import pytesseract
 from PIL import Image
 import re
 import platform
+import requests  # <-- ADICIONADA: A biblioteca que fará a comunicação direta
 import json
 import base64
 from selenium import webdriver
@@ -18,10 +19,6 @@ import io
 import datetime
 from docx import Document
 from docx.shared import Pt
-from google.oauth2 import service_account
-import vertexai
-from vertexai.generative_models import GenerativeModel, GenerationConfig
-
 
 # Configuração Inteligente do Tesseract (Funciona Local e Nuvem)
 if platform.system() == "Windows":
@@ -100,36 +97,42 @@ def minerar_dados_confissao(texto_bruto):
     {texto_bruto}
     """
     
+    chave_nuvem = st.secrets["GEMINI_API_KEY"]
+    
+    st.info(f"🔍 DEBUG NUVEM: Conexão direta ativada. Chave: {chave_nuvem[:4]}...{chave_nuvem[-4:]}")
+    
+    # O PULO DO GATO: Chave injetada diretamente no link (parâmetro ?key=)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={chave_nuvem}"
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    # Estrutura nativa de payload da API
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json"
+        }
+    }
+    
     try:
-        # Puxa o JSON do Streamlit Secrets
-        info_json = json.loads(st.secrets["GOOGLE_JSON"])
-        credenciais = service_account.Credentials.from_service_account_info(info_json)
+        # Enviamos a requisição "nua e crua" sem passar por bibliotecas bugadas
+        resposta = requests.post(url, headers=headers, json=payload)
+        dados = resposta.json()
         
-        # Conecta no servidor corporativo do Google (Vertex AI)
-        vertexai.init(
-            project=info_json["project_id"],
-            location="us-central1", 
-            credentials=credenciais
-        )
-        
-        st.info("🔍 DEBUG NUVEM: Conectado ao servidor empresarial Vertex AI!")
-        
-        # O modelo exato da versão empresarial
-        model = GenerativeModel("gemini-1.5-flash-002")
-        
-        response = model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(
-                response_mime_type="application/json"
-            )
-        )
-        
-        texto_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
-        return json.loads(texto_json)
-        
+        # Se o Google responder com sucesso (Status 200)
+        if resposta.status_code == 200:
+            texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
+            texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
+            return json.loads(texto_json)
+        else:
+            # Mostra na tela o exato erro caso o Google ainda reclame
+            st.warning(f"⚠️ Erro do Google: {dados}")
+            
     except Exception as e:
-        st.warning(f"Falha na API do Google (Vertex AI): {e}")
-        
+        st.warning(f"⚠️ Falha de comunicação: {e}")
+            
     st.error("⚠️ Não foi possível extrair os dados. Veja os alertas amarelos acima.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 

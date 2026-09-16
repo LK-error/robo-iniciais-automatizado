@@ -5,5 +5,3 @@ selenium
 PyMuPDF
 pytesseract
 pillow
-google-auth
-google-cloud-aiplatform
