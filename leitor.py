@@ -115,7 +115,12 @@ def minerar_dados_confissao(texto_bruto):
         pass
         
     # 2. Fila de tentativas com os modelos REAIS da sua chave
-    modelos_para_testar = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"]
+    modelos_para_testar = [
+        "gemini-3.6-flash",
+        "gemini-3.7-flash", 
+        "gemini-3.5-flash",
+        "gemini-flash-latest"
+    ]
     
     headers = {
         "Content-Type": "application/json"
@@ -133,21 +138,29 @@ def minerar_dados_confissao(texto_bruto):
         
         try:
             resposta = requests.post(url, headers=headers, json=payload)
-            dados = resposta.json()
             
             if resposta.status_code == 200:
-                #st.success(f"✅ Sucesso com o modelo: {modelo}")
+                dados = resposta.json()
                 texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
                 texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
                 return json.loads(texto_json)
+                
+            elif resposta.status_code == 503:
+                # O Google pediu para esperar ("High demand"). Damos um respiro de 3 segundos.
+                time.sleep(3)
+                continue
+                
             else:
-                # Agora ele VAI mostrar todos os erros na tela sem esconder nada
-                st.warning(f"⚠️ Erro ao tentar {modelo}: {dados}")
+                # Erro 429 (Cota estourada) ou outro. Pula para o próximo modelo.
+                # dados_erro = resposta.json()
+                # st.warning(f"⚠️ Erro ao tentar {modelo}: {dados_erro}")
+                continue
                 
         except Exception as e:
-            st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
+            # st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
+            continue
             
-    st.error("⚠️ Nenhum modelo funcionou. Veja os erros acima.")
+    st.error("⚠️ Servidores do Google ocupados ou cota excedida. Aguarde 1 minuto e tente novamente.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
 def buscar_endereco_cobrare(pesquisa_devedor):
