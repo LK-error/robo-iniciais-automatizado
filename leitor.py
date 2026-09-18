@@ -115,10 +115,12 @@ def minerar_dados_confissao(texto_bruto):
         pass
         
     # 2. Fila de tentativas com os modelos REAIS da sua chave
+    # 2. Fila de tentativas apelando para os modelos "Lite" (gastam menos cota)
     modelos_para_testar = [
         "gemini-3.6-flash",
-        "gemini-3.7-flash", 
-        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite", 
+        "gemini-3.1-flash-lite",
+        "gemini-flash-lite-latest",
         "gemini-flash-latest"
     ]
     
@@ -146,18 +148,18 @@ def minerar_dados_confissao(texto_bruto):
                 return json.loads(texto_json)
                 
             elif resposta.status_code == 503:
-                # O Google pediu para esperar ("High demand"). Damos um respiro de 3 segundos.
+                # Dá um respiro se o servidor estiver afogado
                 time.sleep(3)
                 continue
                 
             else:
-                # Erro 429 (Cota estourada) ou outro. Pula para o próximo modelo.
-                # dados_erro = resposta.json()
-                # st.warning(f"⚠️ Erro ao tentar {modelo}: {dados_erro}")
+                # TIREI OS COMENTÁRIOS: Vamos ver o que o Google está reclamando!
+                dados_erro = resposta.json()
+                st.warning(f"⚠️ Erro no {modelo}: {dados_erro}")
                 continue
                 
         except Exception as e:
-            # st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
+            st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
             continue
             
     st.error("⚠️ Servidores do Google ocupados ou cota excedida. Aguarde 1 minuto e tente novamente.")
