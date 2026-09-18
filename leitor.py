@@ -115,14 +115,7 @@ def minerar_dados_confissao(texto_bruto):
         pass
         
     # 2. Fila de tentativas com os modelos REAIS da sua chave
-    # 2. Fila de tentativas apelando para os modelos "Lite" (gastam menos cota)
-    modelos_para_testar = [
-        "gemini-3.6-flash",
-        "gemini-3.5-flash-lite", 
-        "gemini-3.1-flash-lite",
-        "gemini-flash-lite-latest",
-        "gemini-flash-latest"
-    ]
+    modelos_para_testar = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"]
     
     headers = {
         "Content-Type": "application/json"
@@ -140,29 +133,21 @@ def minerar_dados_confissao(texto_bruto):
         
         try:
             resposta = requests.post(url, headers=headers, json=payload)
+            dados = resposta.json()
             
             if resposta.status_code == 200:
-                dados = resposta.json()
+                #st.success(f"✅ Sucesso com o modelo: {modelo}")
                 texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
                 texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
                 return json.loads(texto_json)
-                
-            elif resposta.status_code == 503:
-                # Dá um respiro se o servidor estiver afogado
-                time.sleep(3)
-                continue
-                
             else:
-                # TIREI OS COMENTÁRIOS: Vamos ver o que o Google está reclamando!
-                dados_erro = resposta.json()
-                st.warning(f"⚠️ Erro no {modelo}: {dados_erro}")
-                continue
+                # Agora ele VAI mostrar todos os erros na tela sem esconder nada
+                st.warning(f"⚠️ Erro ao tentar {modelo}: {dados}")
                 
         except Exception as e:
             st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
-            continue
             
-    st.error("⚠️ Servidores do Google ocupados ou cota excedida. Aguarde 1 minuto e tente novamente.")
+    st.error("⚠️ Nenhum modelo funcionou. Veja os erros acima.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
 def buscar_endereco_cobrare(pesquisa_devedor):
@@ -243,6 +228,7 @@ def buscar_endereco_cobrare(pesquisa_devedor):
         dados_sistema = {
             "latitude": driver.find_element(By.ID, "nrLatitude").get_attribute("value"),
             "longitude": driver.find_element(By.ID, "nrLongitude").get_attribute("value"),
+            "celular": driver.find_element(By.ID, "nrCelular").get_attribute("value"),
             "logradouro": driver.find_element(By.ID, "txEndereco").get_attribute("value"),
             "numero": driver.find_element(By.ID, "nrEndereco").get_attribute("value"),
             "complemento": driver.find_element(By.ID, "dsComplemento").get_attribute("value"),
@@ -365,6 +351,16 @@ def gerar_documento_word(caminho_modelo, comarca, credor, polo_passivo, lista_ve
             p.text = p.text.replace('[COMARCA]', f"COMARCA DE {comarca.upper()}")
             forcar_paragrafo_bold(p)
             continue
+
+        if '[TELEFONE_DEVEDOR]' in p.text:
+            # Pega o celular capturado (se houver mais de um devedor com celular, ele junta com "e")
+            celulares = [pes.get('celular', '') for pes in polo_passivo if pes.get('celular')]
+            telefone_final = " e ".join(celulares) if celulares else "(Telefone não localizado)"
+            
+            nova_frase = p.text.replace('[TELEFONE_DEVEDOR]', telefone_final)
+            p.clear()
+            aplicar_estilo_garamond(p.add_run(nova_frase))
+            continue
             
         if '[QUALIFICAÇÃO COMPLETA]' in p.text:
             if qualificacao_count == 0:
@@ -413,9 +409,14 @@ def gerar_documento_word(caminho_modelo, comarca, credor, polo_passivo, lista_ve
             continue
                 
         # Formatação Unificada: Veículos e/ou Imóveis
-        if 'd) A expedição de' in p.text and (lista_veiculos or lista_imoveis):
+        # Formatação Unificada: Veículos e/ou Imóveis
+        if ('d) A expedição de' in p.text or '[BENS_PENHORA]' in p.text) and (lista_veiculos or lista_imoveis):
+            is_jec = '[BENS_PENHORA]' in p.text
             p.clear() 
-            aplicar_estilo_garamond(p.add_run("d) Para a efetivação da penhora, a Exequente indica "))
+            
+            # Remove a letra "d)" se for o modelo JEC
+            texto_inicio = "Para a efetivação da penhora, a Exequente indica " if is_jec else "d) Para a efetivação da penhora, a Exequente indica "
+            aplicar_estilo_garamond(p.add_run(texto_inicio))
             
             # Adiciona os imóveis (se houver)
             if lista_imoveis:
@@ -475,6 +476,10 @@ def enviar_para_onedrive(credor, devedor, arquivos):
 # ==========================================
 st.title("📄 Gerador de Iniciais Automatizado")
 
+st.subheader("⚙️ Configuração da Petição")
+tipo_peticao = st.radio("Selecione o modelo da Inicial:", ["Padrão (Justiça Comum)", "JEC (Juizado Especial Cível)"])
+st.markdown("---")
+
 st.subheader("1. Documentos Obrigatórios")
 confissao_file = st.file_uploader("Anexar Confissão de Dívida (PDF)", type=["pdf"])
 
@@ -510,7 +515,7 @@ if st.button("Processar e Gerar Inicial"):
                         st.warning(f"Não foi possível buscar {pessoa['papel']} no COBRARE. Usando endereço do contrato. (Erro: {endereco_cobrare})")
                     else:
                         pessoa['qualificacao'] = atualizar_endereco_devedor(pessoa['qualificacao'], endereco_cobrare, dados_minerados['cidade_comarca'])
-
+                        pessoa['celular'] = endereco_cobrare.get('celular', '')
         lista_veiculos = []
         if detran_files:
             for i, certidao in enumerate(detran_files):
@@ -526,7 +531,10 @@ if st.button("Processar e Gerar Inicial"):
                     lista_imoveis.append(minerar_dados_imovel(texto_imovel))
                 
         with st.spinner("Montando o documento final e formatando estilos..."):
-            caminho_modelo_word = "1. Modelo inicial execução (confissão de dívida).docx"
+            if tipo_peticao == "Padrão (Justiça Comum)":
+                caminho_modelo_word = "1. Modelo inicial execução (confissão de dívida).docx"
+            else:
+                caminho_modelo_word = "2. Modelo inicial JEC.docx" # Certifique-se de que o ficheiro do JEC tem exatamente este nome
             
             # Passamos o polo_passivo inteiro para o Word
             doc_final_bytes = gerar_documento_word(
