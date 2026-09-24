@@ -473,6 +473,21 @@ def gerar_documento_word(caminho_modelo, comarca, credor, polo_passivo, lista_ve
             
             continue
 
+        # --- A PARTE QUE FALTAVA (Negritos e Salvar Documento) ---
+        if texto_upper.startswith("I – DOS FATOS") or \
+           texto_upper.startswith("II – DO DIREITO") or \
+           texto_upper.startswith("III – DOS PEDIDOS") or \
+           texto_upper.startswith("DIANTE DO EXPOSTO") or \
+           texto_upper.startswith("AÇÃO DE EXECUÇÃO POR QUANTIA CERTA") or \
+           (texto_upper == "CLEIDIMARA DA SILVA FLORES") or \
+           (texto_upper.startswith("OAB/RS")):
+            forcar_paragrafo_bold(p)
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
 # ==========================================
 # Placeholder para Upload no OneDrive
 # ==========================================
