@@ -425,59 +425,53 @@ def gerar_documento_word(caminho_modelo, comarca, credor, polo_passivo, lista_ve
                 
         # Formatação Unificada: Veículos e/ou Imóveis
         # Formatação Unificada: Veículos e/ou Imóveis
-        if ('d) A expedição de' in p.text or '[BENS_PENHORA]' in p.text) and (lista_veiculos or lista_imoveis):
+        # Formatação Unificada e Inteligente: Veículos e/ou Imóveis
+        if 'd) A expedição de' in p.text or '[BENS_PENHORA]' in p.text:
             is_jec = '[BENS_PENHORA]' in p.text
-            p.clear() 
             
-            # Remove a letra "d)" se for o modelo JEC
-            texto_inicio = "Para a efetivação da penhora, a Exequente indica " if is_jec else "d) Para a efetivação da penhora, a Exequente indica "
-            aplicar_estilo_garamond(p.add_run(texto_inicio))
-            
-            # Adiciona os imóveis (se houver)
-            if lista_imoveis:
-                textos_imoveis = [f"matrícula nº {im['matricula']}, registrado no Registro de Imóveis de {im['cartorio']}" for im in lista_imoveis]
-                if len(textos_imoveis) == 1:
-                    texto_imovel_completo = "o imóvel de " + textos_imoveis[0]
-                else:
-                    texto_imovel_completo = "os imóveis de " + " e ".join(textos_imoveis)
+            if lista_veiculos or lista_imoveis:
+                p.clear() 
                 
-                aplicar_estilo_garamond(p.add_run(texto_imovel_completo))
+                # Remove a letra "d)" se for o modelo JEC
+                texto_inicio = "Para a efetivação da penhora, a Exequente indica " if is_jec else "d) Para a efetivação da penhora, a Exequente indica "
+                aplicar_estilo_garamond(p.add_run(texto_inicio))
                 
-                # Se tiver veículo também, faz a ponte
+                # Adiciona os imóveis (se houver)
+                if lista_imoveis:
+                    textos_imoveis = [f"matrícula nº {im['matricula']}, registrado no Registro de Imóveis de {im['cartorio']}" for im in lista_imoveis]
+                    if len(textos_imoveis) == 1:
+                        texto_imovel_completo = "o imóvel de " + textos_imoveis[0]
+                    else:
+                        texto_imovel_completo = "os imóveis de " + " e ".join(textos_imoveis)
+                    
+                    aplicar_estilo_garamond(p.add_run(texto_imovel_completo))
+                    
+                    # Se tiver veículo também, faz a ponte
+                    if lista_veiculos:
+                        aplicar_estilo_garamond(p.add_run(", bem como os seguintes veículos de propriedade do Executado: "))
+                    else:
+                        aplicar_estilo_garamond(p.add_run(" de propriedade do Executado."))
+                
+                # Adiciona os veículos (se houver)
+                elif lista_veiculos:
+                    aplicar_estilo_garamond(p.add_run("os seguintes veículos de propriedade do Executado: "))
+                
                 if lista_veiculos:
-                    aplicar_estilo_garamond(p.add_run(", bem como os seguintes veículos de propriedade do Executado: "))
-                else:
-                    aplicar_estilo_garamond(p.add_run(" de propriedade do Executado."))
+                    romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+                    for i, v in enumerate(lista_veiculos):
+                        idx_romano = romanos[i] if i < len(romanos) else str(i + 1)
+                        
+                        run_bold = aplicar_estilo_garamond(p.add_run(f"{idx_romano} - {v['marca']}"))
+                        run_bold.bold = True
+                        
+                        separator = "; " if i < len(lista_veiculos) - 1 else "."
+                        aplicar_estilo_garamond(p.add_run(f", de placa {v['placa']}, ano/modelo {v['ano_modelo']}, cor {v['cor']}, possui o RENAVAM {v['renavam']} e o chassi {v['chassi']}{separator} "))
+            else:
+                # SE NÃO HOUVER BENS: Apaga o parágrafo inteiro para a lista automática do Word não bugar
+                if is_jec:
+                    p._element.getparent().remove(p._element)
             
-            # Adiciona os veículos (se houver)
-            elif lista_veiculos:
-                aplicar_estilo_garamond(p.add_run("os seguintes veículos de propriedade do Executado: "))
-            
-            if lista_veiculos:
-                romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
-                for i, v in enumerate(lista_veiculos):
-                    idx_romano = romanos[i] if i < len(romanos) else str(i + 1)
-                    
-                    run_bold = aplicar_estilo_garamond(p.add_run(f"{idx_romano} - {v['marca']}"))
-                    run_bold.bold = True
-                    
-                    separator = "; " if i < len(lista_veiculos) - 1 else "."
-                    aplicar_estilo_garamond(p.add_run(f", de placa {v['placa']}, ano/modelo {v['ano_modelo']}, cor {v['cor']}, possui o RENAVAM {v['renavam']} e o chassi {v['chassi']}{separator} "))
             continue
-            
-        if texto_upper.startswith("I – DOS FATOS") or \
-           texto_upper.startswith("II – DO DIREITO") or \
-           texto_upper.startswith("III – DOS PEDIDOS") or \
-           texto_upper.startswith("DIANTE DO EXPOSTO") or \
-           texto_upper.startswith("AÇÃO DE EXECUÇÃO POR QUANTIA CERTA") or \
-           (texto_upper == "CLEIDIMARA DA SILVA FLORES") or \
-           (texto_upper.startswith("OAB/RS")):
-            forcar_paragrafo_bold(p)
-
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
 
 # ==========================================
 # Placeholder para Upload no OneDrive
