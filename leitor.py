@@ -519,10 +519,10 @@ if st.button("Processar e Gerar Inicial"):
         with st.spinner("Minerando Confissão de Dívida..."):
             texto_confissao = extrair_texto_hibrido(confissao_file.getvalue())
             
-            st.error("🚨 MODO DE TESTE ATIVADO 🚨")
-            st.write("Isto é o que o robô conseguiu ler do PDF da Confissão:")
-            st.code(texto_confissao)
-            st.stop()
+            #st.error("🚨 MODO DE TESTE ATIVADO 🚨")
+            #st.write("Isto é o que o robô conseguiu ler do PDF da Confissão:")
+            #st.code(texto_confissao)
+           # st.stop()
             
             dados_minerados = minerar_dados_confissao(texto_confissao)
             
