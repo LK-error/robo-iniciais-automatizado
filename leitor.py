@@ -117,10 +117,11 @@ def minerar_dados_confissao(texto_bruto):
     # 2. Fila de tentativas com os modelos REAIS da sua chave
     # Fila de tentativas apelando para os modelos "Lite" (gastam menos cota)
     modelos_para_testar = [
-        "gemini-1.5-flash",
-        "gemini-2.0-flash",
-        "gemini-flash-latest",
-        "gemini-1.5-flash-8b"
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite", 
+        "gemini-3.1-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-flash-latest"
     ]
     
     headers = {
@@ -518,10 +519,10 @@ if st.button("Processar e Gerar Inicial"):
         with st.spinner("Minerando Confissão de Dívida..."):
             texto_confissao = extrair_texto_hibrido(confissao_file.getvalue())
             
-            #st.error("🚨 MODO DE TESTE ATIVADO 🚨")
-            #st.write("Isto é o que o robô conseguiu ler do PDF da Confissão:")
-            #st.code(texto_confissao)
-            #st.stop()
+            st.error("🚨 MODO DE TESTE ATIVADO 🚨")
+            st.write("Isto é o que o robô conseguiu ler do PDF da Confissão:")
+            st.code(texto_confissao)
+            st.stop()
             
             dados_minerados = minerar_dados_confissao(texto_confissao)
             
