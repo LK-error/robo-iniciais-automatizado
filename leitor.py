@@ -526,19 +526,25 @@ if st.button("Processar e Gerar Inicial"):
             
             dados_minerados = minerar_dados_confissao(texto_confissao)
             
-            # --- RAIO-X DO POLO PASSIVO ---
-            #st.info(f"🔍 DEBUG: Polo Passivo encontrado -> {dados_minerados['polo_passivo']}")
-            # ------------------------------
+            # --- NOVA TRAVA DE SEGURANÇA: Blinda contra respostas nulas do LLM ---
+            if not isinstance(dados_minerados, dict):
+                dados_minerados = {}
+            dados_minerados['polo_passivo'] = dados_minerados.get('polo_passivo') or []
+            dados_minerados['credor'] = dados_minerados.get('credor') or ""
+            dados_minerados['cidade_comarca'] = dados_minerados.get('cidade_comarca') or ""
+            # ----------------------------------------------------------------------
             
         # Percorre todos os encontrados (Devedores e Avalistas)
         for pessoa in dados_minerados['polo_passivo']:
-            if pessoa['cpf']:
-                with st.spinner(f"Buscando endereço de {pessoa['papel']} ({pessoa['cpf']}) no COBRARE..."):
+            if pessoa.get('cpf'): # Usa .get() para evitar quebra se a chave 'cpf' não existir
+                papel = pessoa.get('papel', 'Devedor')
+                with st.spinner(f"Buscando endereço de {papel} ({pessoa['cpf']}) no COBRARE..."):
                     endereco_cobrare = buscar_endereco_cobrare(pessoa['cpf'])
                     if isinstance(endereco_cobrare, str):
-                        st.warning(f"Não foi possível buscar {pessoa['papel']} no COBRARE. Usando endereço do contrato. (Erro: {endereco_cobrare})")
+                        st.warning(f"Não foi possível buscar {papel} no COBRARE. Usando endereço do contrato. (Erro: {endereco_cobrare})")
                     else:
-                        pessoa['qualificacao'] = atualizar_endereco_devedor(pessoa['qualificacao'], endereco_cobrare, dados_minerados['cidade_comarca'])
+                        qualificacao = pessoa.get('qualificacao', '')
+                        pessoa['qualificacao'] = atualizar_endereco_devedor(qualificacao, endereco_cobrare, dados_minerados['cidade_comarca'])
                         pessoa['celular'] = endereco_cobrare.get('celular', '')
         lista_veiculos = []
         if detran_files:
