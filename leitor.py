@@ -527,6 +527,12 @@ if st.button("Processar e Gerar Inicial"):
            # st.stop()
             
             dados_minerados = minerar_dados_confissao(texto_confissao)
+
+            # --- RAIO-X DA RESPOSTA DA IA ---
+            st.warning("🚨 O QUE O GOOGLE DEVOLVEU:")
+            st.json(dados_minerados)
+            st.stop()
+            # --------------------------------
             
             # --- NOVA TRAVA DE SEGURANÇA: Blinda contra respostas nulas do LLM ---
             if not isinstance(dados_minerados, dict):
