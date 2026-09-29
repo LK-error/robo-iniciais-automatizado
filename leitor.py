@@ -145,7 +145,16 @@ def minerar_dados_confissao(texto_bruto):
                 dados = resposta.json()
                 texto_json = dados["candidates"][0]["content"]["parts"][0]["text"]
                 texto_json = texto_json.strip().removeprefix('```json').removesuffix('```').strip()
-                return json.loads(texto_json)
+                
+                # --- A MÁGICA DA CORREÇÃO ENTRA AQUI ---
+                resultado_json = json.loads(texto_json)
+                
+                # Se o Google mandar uma lista, pegamos o primeiro item dela
+                if isinstance(resultado_json, list) and len(resultado_json) > 0:
+                    return resultado_json[0]
+                
+                return resultado_json
+                # ---------------------------------------
                 
             elif resposta.status_code == 503:
                 # Dá um respiro se o servidor estiver afogado
@@ -527,12 +536,6 @@ if st.button("Processar e Gerar Inicial"):
            # st.stop()
             
             dados_minerados = minerar_dados_confissao(texto_confissao)
-
-            # --- RAIO-X DA RESPOSTA DA IA ---
-            st.warning("🚨 O QUE O GOOGLE DEVOLVEU:")
-            st.json(dados_minerados)
-            st.stop()
-            # --------------------------------
             
             # --- NOVA TRAVA DE SEGURANÇA: Blinda contra respostas nulas do LLM ---
             if not isinstance(dados_minerados, dict):
