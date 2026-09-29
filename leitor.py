@@ -154,14 +154,16 @@ def minerar_dados_confissao(texto_bruto):
                 continue
                 
             else:
-                # Mantém os erros silenciados para não sujar a tela
+                # O ROBÔ VAI DEDURAR O ERRO AQUI
+                dados_erro = resposta.json()
+                st.warning(f"⚠️ Erro no {modelo}: {dados_erro}")
                 continue
                 
         except Exception as e:
-            # st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
+            # E AQUI TAMBÉM
+            st.warning(f"⚠️ Falha de comunicação com {modelo}: {e}")
             continue
             
-    # Ajustei a mensagem final para não mandar o usuário olhar para o nada
     st.error("⚠️ Servidores do Google ocupados ou cota excedida. Aguarde 1 minuto e tente novamente.")
     return {"credor": "Erro", "polo_passivo": [], "cidade_comarca": "Erro"}
 
